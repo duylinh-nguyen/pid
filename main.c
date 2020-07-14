@@ -29,8 +29,8 @@ void Timer0BInthandler(void);
 
 volatile unsigned long Period;
 
-volatile uint16_t uMax;
-volatile uint16_t uMin;
+volatile uint16_t dutyMax;
+volatile uint16_t dutyMin;
 volatile int16_t pos;
 
 volatile int16_t pos_d;
@@ -79,17 +79,12 @@ void init(){
      GPIOIntTypeSet(GPIO_PORTD_BASE, GPIO_PIN_6, GPIO_FALLING_EDGE);
      GPIOIntRegister(GPIO_PORTD_BASE, PF6IntHandler);
      GPIOIntEnable(GPIO_PORTD_BASE, GPIO_INT_PIN_6);
-     //Timer A configure
-//     uint32_t ui32Period = (SysCtlClockGet()/1000); // period of timer = 50mhz/1000 = 50k
-//        // SysCtlDelay(5000000);
-//     PWMGenDisable(PWM1_BASE,PWM_GEN_2);
-//     TimerLoadSet(TIMER0_BASE, TIMER_A, ui32Period -1);
 
-     IntMasterEnable();
      initPWM();
      initConsole();
      initQEI();
      initLoopControl();
+     IntMasterEnable();
 }
 
 void initConsole(void){
@@ -120,12 +115,12 @@ void initPWM(void){
     PWMGenEnable(PWM1_BASE, PWM_GEN_2);
     PWMGenEnable(PWM1_BASE, PWM_GEN_3);
 
-    uMax = 5000; //2640
-    uMin = uMax*0.019375*2;
+    dutyMax = 95; //2640
+    dutyMin = 5;
 }
 
 void initQEI(){
-    //Set GPIO pins for QEI. PhA0 -> PD6, PhB0 ->PD7. I believe this sets the pull up and makes them inputs
+    //Set GPIO pins for QEI. PhA0 -> PD6, PhB0 ->PD7.
      GPIOPinTypeQEI(GPIO_PORTD_BASE, GPIO_PIN_6 |  GPIO_PIN_7);
 
      //DISable peripheral and int before configuration
@@ -135,7 +130,7 @@ void initQEI(){
      // Configure quadrature encoder, use an arbitrary top limit of 1000
      QEIConfigure(QEI0_BASE, (QEI_CONFIG_CAPTURE_A_B  | QEI_CONFIG_NO_RESET  | QEI_CONFIG_QUADRATURE | QEI_CONFIG_NO_SWAP), 0xFFFFFFFF);
 
-     // Enable the quadrature encoder.
+     // Enable the quadrature encoder interface.
      QEIEnable(QEI0_BASE);
 
      //Set position to a middle value so we can see if things are working
@@ -188,9 +183,9 @@ void setDIR(uint8_t val){
 void setPWM(float val){
     //UARTprintf("set PWM");
     //rescale to dutycycle %
-    val = val*1.0/65535*5000.0;
-    if(val < uMin) val = uMin;
-    if(val > uMax) val = uMax;
+    val = val/1320*100;
+    if(val < dutyMin) val = dutyMin;
+    if(val > dutyMax) val = dutyMax;
 
     PWMPulseWidthSet(PWM1_BASE, PWM_GEN_2, val*Period/100);
     PWMPulseWidthSet(PWM1_BASE, PWM_GEN_3, val*Period/100);
